@@ -1,0 +1,89 @@
+\documentclass[10pt]{article}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage[pdftex]{graphicx}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{color}
+\usepackage{dsfont}
+\pagestyle{fancy}
+\setlength{\headheight}{0.5in}
+\setlength{\oddsidemargin}{-.375in}
+\setlength{\evensidemargin}{0.125in}
+\setlength{\voffset}{-0.8in}
+\setlength{\headsep}{10pt}
+\setlength{\textwidth}{7.3in}
+\setlength{\headwidth}{7.3in}
+\setlength{\textheight}{9.0in}
+\setlength{\parskip}{0.10in}
+
+\def\tr{\mathop{\rm tr}}
+\def\argmin{\mathop{\rm argmin}}
+\def\det{\mathop{\rm det}}
+\def\diag{\mathop{\rm diag}}
+\def\rank{\mathop{\rm rank}}
+\def\nullity{\mathop{\rm nullity}}
+\def\conf{\mathop{\rm conf}}
+\def\lift{\mathop{\rm lift}}
+\def\conv{\mathop{\rm conv}}
+\newcommand{\Norm}[1]{\left\| #1 \right\|}
+\newcommand{\Card}[1]{\left| #1 \right|}
+
+\begin{document}
+\lhead{
+\bf{\textsf{LIT CTF 2023 - crypto/polypoint}}}
+\rhead{\textsf{xiaowuc1}}
+\begin{flushleft}
+
+\section*{Problem Source Code}
+
+\begin{verbatim}
+from secrets import SystemRandom
+
+gen = SystemRandom()
+
+with open("flag.txt", "rb") as f:
+  flag = f.read().strip()
+
+assert len(flag) == 76
+c = int.from_bytes(flag)
+
+poly = [c]
+for _ in range(10):
+  poly.append(gen.randrange(pow(10, 11), pow(10, 12)))
+
+for _ in range(10):
+  x = gen.randrange(pow(10, 11), pow(10, 12))
+  v = 1
+  y = 0
+  for i in range(11):
+    y += poly[i] * v
+    v *= x
+  print(f"({x},{y})")
+\end{verbatim}
+
+\section*{Solution}
+
+What this code is effectively doing is generating a polynomial of the form $f(x) = c + \displaystyle\sum_{i=1}^{10} a_i x^i$, where $10^{11} \le a_i < 10^{12}$,
+and then giving us 10 random points on the polynomial with $x$-coordinates also in the range $[10^{11}, 10^{12})$. Our goal is to compute $c$.
+
+We'll do this by computing the coefficients from $a_{10}$ down to $a_{1}$ in this order. Let $g(x) = \sum_{i=1}^{10} a_i' x^i$, and we initialize $a_i' = 10^{11}$.
+Clearly, $f(x) - g(x)$ is a polynomial that is nondecreasing over the positive reals. There exists some minimum value $a_{10}'$ such that 
+$f(x) - g(x)$ eventually decreases, so we can binary search for this value and set $a_{10}'$ to the largest integer less than this value. We
+repeat this process for $a_9'$ going down to $a_1'$. Once we're done, we're left with the constant term and we can print it out directly.
+
+Source code can be found \href{https://gist.github.com/xiaowuc1/0203aeb28acc4f70ec6ad4a59d2fa7d7}{here}.
+
+\section*{Notes on Correctness}
+
+Imagine that we guess $a_{10}' = a_{10} + 1$. The derivative of $f(x) - g(x)$ can be approximated by $-10x^9 + 9a_9 x^8$,
+which becomes negative when $x = \dfrac{9a_9}{10}$. The given source code could fail if all $x$-values happened to be less than this value.
+However, because the polynomial's first through ninth derivatives are all nonnegative, we could take finite differences to validate
+that all of the underlying sequences were still positive on the range, and if any of these checks failed, then the guessed value in our binary
+search would still be too large.
+
+For the lower-order terms, the derivative becomes negative at increasingly smaller values, so if we guess the value of $a_{10}$ correctly, the rest
+of the terms should be correctly guessed as well.
+
+\end{flushleft}
+
+\end{document}
